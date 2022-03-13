@@ -1,88 +1,42 @@
-from pydrive.drive import GoogleDrive
-from pydrive.auth import GoogleAuth
 import os
 import requests
 import datetime
+import re
+import platform
+from pydrive.drive import GoogleDrive
+from pydrive.auth import GoogleAuth
 
-goodle_form_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSc-RUvaDkEG19GHG_P2kWe0XCOjdWndRlBUQvirw4xCcOtwtg'
-url_response = goodle_form_URL + '/formResponse'
-url_referer = goodle_form_URL + '/viewform'
-form_data = {
-	'entry.' : 'Мадорский Никита Вячеславович | 123202', # ФИО преподавателя
-	'entry.': 'Анцупова Александра ТЛ2', #ТЛ
-	'entry.': 'Индивидуальные уроки (8 лет и старше)', #Формат обучения
-	'entry.': 'Python Базовый', #Какой курс
-	'entry.': 'М1У3', #Какой модуль и урок вы прошли
-	'entry.': 'Онлайн_Ind1422', #Номер группы
-	'entry.': '2022', #Дата проведения занятия год
-	'entry.': '03', #Дата проведения занятия месяц
-	'entry.': '09', #Дата проведения занятия день
-	'entry.': 'Нет', #Возникали ли технические трудности
-	'entry.': '5', #Насколько вы удовлетворены методическими материалами
-	'entry.': 'Да', #Успели пройти весь материал
-	'entry.': 'Нет', #Был ли непонятный для ученика материал
-	'entry.': 'Да', #Уложились в тайминг?
-	'entry.': 'https://test.mp4', #Ссылка на запись урока
-} # real form!!!!
+from data import teacher_name, team_lead_name, path_to_folder_zoom, folder_name_google_disk, url_response, url_referer
 
-form_data_test = {
-	'entry.215990568' : 'Мадорский Никита Вячеславович', # ФИО
-	'entry.701392505' : 'Анцупова Александра ТЛ2', # ТЛ
-	'entry.92894374' : 'Индивидуальные уроки (8 лет и старше)', # Формат обучения
-	'entry.535140742' : 'Python Базовый', # Какой курс
-	'entry.1911636169': 'М1У1', #модуль и урок
-	'entry.356726832': 'Онлайн_Ind1422', #Номер группы
-	'entry.1703763926_year' : str(datetime.datetime.today().year), # дата год
-	'entry.1703763926_month' : str(datetime.datetime.today().month), # дата месяц
-	'entry.1703763926_day' : str(datetime.datetime.today().day), # дата день
-	'entry.2031718956' : '5', # Насколько вы удовлетворены 
-	# 'entry.92894374_sentinel': '',
-	# 'entry.535140742_sentinel': '',
-	# 'entry.2031718956_sentinel': '',
-} # test form
 
+if platform.system() == 'Windows' or platform.system() == 'win32':
+	separator = '\\'
+else:
+	separator = '/'
 user_agent = {
 	'Referer': url_referer,
 	'User-Agent': "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/98.0.4758.102 Safari/537.36",
 }
-
-
-# r = requests.post(url_response, data=form_data_test, headers=user_agent)
-# print(r.status_code)
-# exit()
-
-
 gauth = GoogleAuth()
-gauth.LocalWebserverAuth()
-
+# gauth.LocalWebserverAuth()
 drive = GoogleDrive(gauth)
-
-path_file = '/Users/a1/Downloads/2022-03-09 12.00.07 Kodland_Ind 77631215385/Онлайн_Ind1422М1У5.mp4'
-
-
-def upload_test():
-	my_file = drive.CreateFile({'title': f'test_photo.jpg'})
-	my_file.SetContentFile('/Users/a1/Downloads/Работа/Кодленд/GUI/test_photo.jpg')
-	my_file.Upload()
-	my_file.InsertPermission({
-		'type': 'anyone',
-		'value': 'withLink',
-		'role': 'reader',
-	})
-	link_to_file = my_file['alternateLink']
 
 
 def get_group_name(filename):
+	"""Получить группу из названия видеозаписи урока"""
 	filename_split = filename.split('_')
-	return filename_split[0] + '_' + filename_split[1]
+	group_name = filename_split[1] + '_' + filename_split[2]
+	return group_name.replace('й', 'й')
 
 
 def get_lesson(filename):
+	"""Получить модуль и урок из названия видеозаписи урока"""
 	filename_split = filename.split('_')
-	return filename_split[2]
+	return filename_split[4].split('.')[0]
 
 
 def get_course(filename):
+	"""Получить курс по id из названия видеозаписи урока"""
 	courses_dict = {
 		'28' : 'Python Pro',
 		'67' : 'Python Базовый',
@@ -94,42 +48,102 @@ def get_course(filename):
 		'301' : 'Python Базовый',
 		'379' : 'Python Pro',
 		'425' : 'Python Pro',
-	}
+	} # словарь, в котором хранятся курсы как в гугл форме
 	filename_split = filename.split('_')
 	course_number = filename_split[3]
 	return courses_dict.get(course_number)
 
 
-def upload_lesson():
-	# filename в формате Онлайн_Ind1422_М1У1_301
-	videos = []
-	for dirpath, dirnames, filenames in os.walk("/Users/a1/Downloads/Работа/Кодленд/Записи уроков/"):
-		# перебрать файлы
+def check_filename(filename):
+	"""Проверка формата названия видеорука"""
+	result = re.match(r'Онлайн_Ind\d{1,}_\d{1,}_М[1-8]У[1-8]\.mp4', filename)
+	if not result:
+		print('ERROR: Формат названия видеозаписи неверный\nПример: Онлайн_Ind1422_301_М1У5.mp4')
+		return 1
+	return 0
+
+
+def send_google_form(path_to_file='', link_to_file=''):
+	"""Отправка гугл формы"""
+	filename = path_to_file.split(separator)[-1]
+	group_name = get_group_name(filename)
+	date_file = str(datetime.datetime.fromtimestamp(os.path.getctime(path_to_file))).split('-')
+	form_data_test = {
+		'entry.433313432': teacher_name, # ФИО
+		'entry.1399459001': team_lead_name, # ТЛ
+		'entry.213406366': group_name, #Номер группы
+		'entry.648502256': 'Индивидуальные уроки (8 лет и старше)', # Формат обучения
+		'entry.324580992_year': date_file[0], # дата год
+		'entry.324580992_month': date_file[1], # дата месяц
+		'entry.324580992_day': date_file[2].split()[0], # дата день
+		'entry.383275495': 'Да',
+		'entry.387976623': 'Нет',
+		'entry.691245485': 'Нет',
+		'entry.708310721': get_lesson(filename), # Модуль и урок
+		'entry.779449585': get_course(filename), # Какой курс
+		'entry.1209315004': 'Да',
+		'entry.1989654872': link_to_file, # Ссылка на видео на гугл диск
+	} # данные для отправки гугл формы
+	r = requests.post(url_response, data=form_data_test, headers=user_agent)
+	if r.status_code == 200:
+		print(f'Форма по группе {group_name} отправлена успешно')
+	else:
+		print(f'\nERROR: Форма по группе {group_name} не отправлена, произошла какая-то ошибка')
+
+
+def clear_google_disk():
+	"""Удаление видеоуроков, которые хранятся на диске больше месяца и перемещение их в корзину"""
+	dir_list = drive.ListFile({'q': "'root' in parents and trashed=false"}).GetList()
+	for dir in dir_list:
+		if(dir['title'] == folder_name_google_disk):
+			dir_id = dir['id']
+			break
+	file_list = drive.ListFile({'q': f"'{dir_id}' in parents and trashed=false"}).GetList()
+	for file in file_list:
+		file = drive.CreateFile({"id": file['id']})
+		date_of_upload_file = datetime.datetime.strptime(file['createdDate'].split('T')[0], "%Y-%m-%d")
+		td = datetime.datetime.now() - date_of_upload_file
+		if td.days >= 31:
+			file.Trash() # удаление файла с гугл диск по истечении 31 дня
+
+
+def upload_lessons():
+	"""Загрузка видеоуроков из папки на гугл диск"""
+	clear_google_disk()
+	file_list = drive.ListFile({'q': "'root' in parents and trashed=false"}).GetList()
+	file_id = ''
+	for file in file_list:
+		if(file['title'] == folder_name_google_disk):
+			file_id = file['id']
+	if file_id == '':
+		print('ERROR: Я не смог найти твою папку на гугл диск')
+		exit()
+	for dirpath, dirnames, filenames in os.walk(path_to_folder_zoom):
 		for filename in filenames:
-			if filename[-4:] == '.mp4':
-				videos.append(filename)
-				# my_file = drive.CreateFile({'title': f'{filename}'})
-				# my_file.SetContentFile(os.path.join(dirpath, filename))
-				# my_file.Upload()
-				# my_file.InsertPermission({
-				# 	'type': 'anyone',
-				# 	'value': 'withLink',
-				# 	'role': 'reader',
-				# })
-
-
-
-
-	# for file in os.listdir('/Users/a1/Downloads/Работа/Кодленд/Записи уроков'):
-	#     my_file = drive.CreateFile({'title': f'Онлайн_Ind1422М1У5.mp4'})
-	#     my_file.SetContentFile(path)
-	#     my_file.Upload()
+			if filename.endswith('.mp4') and not filename.startswith('uploaded_'):
+				if check_filename(filename):
+					continue
+				file = drive.CreateFile({
+					'title': filename,
+					"parents": [{"kind": "drive#fileLink", "id": file_id}],
+				})
+				path_to_file = os.path.join(dirpath, filename)
+				file.SetContentFile(path_to_file)
+				file.Upload()
+				file.InsertPermission({
+					'type': 'anyone',
+					'value': 'withLink',
+					'role': 'reader',
+				})
+				new_filename = dirpath + separator + 'uploaded_' + filename
+				os.rename(path_to_file, new_filename)
+				link_to_file = file['alternateLink']
+				print(f'Урок по группе {get_group_name(new_filename)} загружен на гугл диск успешно')
+				send_google_form(new_filename, link_to_file)
 
 
 if __name__ == '__main__':
-	# upload_lesson()
-	# upload_test()
-
-# file1 = drive.CreateFile({'title': 'Hello.txt'})  # Create GoogleDriveFile instance with title 'Hello.txt'.
-# file1.SetContentString('Hello World!') # Set content of the file from given string.
-# file1.Upload()
+	upload_lessons()
+	# get_group_name(filename)
+	# get_lesson(filename)
+	# get_course(filename)
