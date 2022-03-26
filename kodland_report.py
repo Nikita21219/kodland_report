@@ -25,7 +25,7 @@ user_agent = {
 
 # Аутентификация гугл
 gauth = GoogleAuth()
-# gauth.LocalWebserverAuth()
+gauth.LocalWebserverAuth()
 drive = GoogleDrive(gauth)
 
 
