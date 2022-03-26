@@ -6,9 +6,14 @@ import platform
 from pydrive.drive import GoogleDrive
 from pydrive.auth import GoogleAuth
 
-from data import teacher_name, team_lead_name, path_to_folder_zoom, folder_name_google_disk, url_response, url_referer
+from data import teacher_name, team_lead_name, path_to_folder_zoom, folder_name_google_disk
 
+goodle_form_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSfkYyW4H8QtOMe3JAg_ELRRPKsis1WHp4NXJ2dst3S3FH3ZZQ'
 
+url_response = goodle_form_URL + '/formResponse'
+url_referer = goodle_form_URL + '/viewform'
+
+# Определения сепаратора для разных ОС
 if platform.system() == 'Windows' or platform.system() == 'win32':
 	separator = '\\'
 else:
@@ -17,6 +22,8 @@ user_agent = {
 	'Referer': url_referer,
 	'User-Agent': "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/98.0.4758.102 Safari/537.36",
 }
+
+# Аутентификация гугл
 gauth = GoogleAuth()
 # gauth.LocalWebserverAuth()
 drive = GoogleDrive(gauth)
@@ -91,13 +98,8 @@ def send_google_form(path_to_file='', link_to_file=''):
 		print(f'\nERROR: Форма по группе {group_name} не отправлена, произошла какая-то ошибка')
 
 
-def clear_google_disk():
+def clear_google_disk(dir_id):
 	"""Удаление видеоуроков, которые хранятся на диске больше месяца и перемещение их в корзину"""
-	dir_list = drive.ListFile({'q': "'root' in parents and trashed=false"}).GetList()
-	for dir in dir_list:
-		if(dir['title'] == folder_name_google_disk):
-			dir_id = dir['id']
-			break
 	file_list = drive.ListFile({'q': f"'{dir_id}' in parents and trashed=false"}).GetList()
 	for file in file_list:
 		file = drive.CreateFile({"id": file['id']})
@@ -109,15 +111,15 @@ def clear_google_disk():
 
 def upload_lessons():
 	"""Загрузка видеоуроков из папки на гугл диск"""
-	clear_google_disk()
 	file_list = drive.ListFile({'q': "'root' in parents and trashed=false"}).GetList()
-	file_id = ''
-	for file in file_list:
-		if(file['title'] == folder_name_google_disk):
-			file_id = file['id']
-	if file_id == '':
+	dir_id = ''
+	for dir in file_list:
+		if(dir['title'] == folder_name_google_disk):
+			dir_id = dir['id']
+	if dir_id == '':
 		print('ERROR: Я не смог найти твою папку на гугл диск')
 		exit()
+	clear_google_disk(dir_id) # удаление уроков, которые были загружены более 31 дня назад
 	for dirpath, dirnames, filenames in os.walk(path_to_folder_zoom):
 		for filename in filenames:
 			if filename.endswith('.mp4') and not filename.startswith('uploaded_'):
@@ -125,7 +127,7 @@ def upload_lessons():
 					continue
 				file = drive.CreateFile({
 					'title': filename,
-					"parents": [{"kind": "drive#fileLink", "id": file_id}],
+					"parents": [{"kind": "drive#fileLink", "id": dir_id}],
 				})
 				path_to_file = os.path.join(dirpath, filename)
 				file.SetContentFile(path_to_file)
@@ -138,12 +140,9 @@ def upload_lessons():
 				new_filename = dirpath + separator + 'uploaded_' + filename
 				os.rename(path_to_file, new_filename)
 				link_to_file = file['alternateLink']
-				print(f'Урок по группе {get_group_name(new_filename)} загружен на гугл диск успешно')
+				# Загрузка формы по этому уроку
 				send_google_form(new_filename, link_to_file)
 
 
 if __name__ == '__main__':
 	upload_lessons()
-	# get_group_name(filename)
-	# get_lesson(filename)
-	# get_course(filename)

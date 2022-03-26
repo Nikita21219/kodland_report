@@ -3,15 +3,9 @@ teacher_name = 'Мадорский Никита Вячеславович | 12320
 # Ваш ТЛ из ГУГЛ ФОРМЫ
 team_lead_name = 'Анцупова Александра ТЛ2'
 # Полный путь до папки зума
-path_to_folder_zoom = '/Users/a1/Downloads/Работа/Кодленд/Записи уроков'
+path_to_folder_zoom = r'/Users/a1/Downloads/Работа/Кодленд/Записи уроков'
 # Название папки на гугл диске
 folder_name_google_disk = 'Кодленд'
-
-
-goodle_form_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSfkYyW4H8QtOMe3JAg_ELRRPKsis1WHp4NXJ2dst3S3FH3ZZQ'
-url_response = goodle_form_URL + '/formResponse'
-url_referer = goodle_form_URL + '/viewform'
-
 
 # Real form
 
