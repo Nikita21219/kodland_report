@@ -14,10 +14,9 @@ url_response = goodle_form_URL + '/formResponse'
 url_referer = goodle_form_URL + '/viewform'
 
 # Определения сепаратора для разных ОС
+separator = '/'
 if platform.system() == 'Windows' or platform.system() == 'win32':
 	separator = '\\'
-else:
-	separator = '/'
 user_agent = {
 	'Referer': url_referer,
 	'User-Agent': "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/98.0.4758.102 Safari/537.36",
@@ -83,12 +82,8 @@ def send_google_form(path_to_file='', link_to_file=''):
 		'entry.324580992_year': date_file[0], # дата год
 		'entry.324580992_month': date_file[1], # дата месяц
 		'entry.324580992_day': date_file[2].split()[0], # дата день
-		'entry.383275495': 'Да',
-		'entry.387976623': 'Нет',
-		'entry.691245485': 'Нет',
 		'entry.708310721': get_lesson(filename), # Модуль и урок
 		'entry.779449585': get_course(filename), # Какой курс
-		'entry.1209315004': 'Да',
 		'entry.1989654872': link_to_file, # Ссылка на видео на гугл диск
 	} # данные для отправки гугл формы
 	r = requests.post(url_response, data=form_data_test, headers=user_agent)
